@@ -1,4 +1,6 @@
 import log from './log';
+import Thread from './thread';
+import WorkerBroker from './worker_broker';
 
 // Adds a base origin to relative URLs
 export function addBaseURL (url, base) {
@@ -139,6 +141,12 @@ export function createObjectURL (url) {
 
 let _revokeObjectURL;
 export function revokeObjectURL (url) {
+    // Worker execution path - proxy to main thread
+    if (Thread.is_worker) {
+        return WorkerBroker.postMessage('URLs.revokeObjectURL', url);
+    }
+
+    // Main thread execution path
     if (_revokeObjectURL === undefined) {
         _revokeObjectURL = (window.URL && window.URL.revokeObjectURL) || (window.webkitURL && window.webkitURL.revokeObjectURL);
 
@@ -177,3 +185,8 @@ export function findCurrentURL (...paths) {
         }
     }
 }
+
+// Setup cross-thread calling
+WorkerBroker.addTarget('URLs', {
+    revokeObjectURL
+});

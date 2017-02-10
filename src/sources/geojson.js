@@ -2,6 +2,7 @@ import log from '../utils/log';
 import DataSource, {NetworkSource, NetworkTileSource} from './data_source';
 import {decodeMultiPolygon} from './mvt';
 import Geo from '../geo';
+import * as URLs from '../utils/urls';
 
 // For tiling GeoJSON client-side
 import geojsonvt from 'geojson-vt';
@@ -19,11 +20,19 @@ export class GeoJSONSource extends NetworkSource {
         this.tile_indexes = {}; // geojson-vt tile indices, by layer name
         this.max_zoom = Math.max(this.max_zoom || 0, 15); // TODO: max zoom < 15 causes artifacts/no-draw at 20, investigate
         this.pad_scale = 0; // we don't want padding on auto-tiled sources
+        this.revoke_blob = source.revoke_blob; // internally created blob URL that should be revoked after loading?
     }
 
     _load(dest) {
         if (!this.load_data) {
             this.load_data = super._load({ source_data: { layers: {} } }).then(data => {
+                // Free temporary blob URL?
+                if (this.revoke_blob) {
+                    URLs.revokeObjectURL(this.url);
+                    log('debug', `Revoking previous blob URL for source '${this.name}': '${this.url}'`);
+                    this.revoke_blob = null;
+                }
+
                 // Warn and continue on data source error
                 if (data.source_data.error) {
                     log('warn', `data source load error(s) for source '${this.name}', URL '${this.url}': ${data.source_data.error}`);
@@ -111,8 +120,8 @@ export class GeoJSONSource extends NetworkSource {
     }
 
     parseSourceData (tile, source, response) {
-        let parsed_response = JSON.parse(response);
-        let layers = this.getLayers(parsed_response);
+        let data = JSON.parse(response);
+        let layers = this.getLayers(data);
         source.layers = this.preprocessLayers(layers);
     }
 

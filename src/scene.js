@@ -852,6 +852,8 @@ export default class Scene {
         // Convert raw data into blob URL
         if (source.data && typeof source.data === 'object') {
             source.url = URLs.createObjectURL(new Blob([JSON.stringify(source.data)]));
+            source.revoke_blob = true; // tell data source to revoke blob URL when done loading
+            log('debug', `Creating blob URL for source '${name}': '${source.url}'`);
             delete source.data;
         }
 
@@ -874,6 +876,7 @@ export default class Scene {
             let source = this.config.sources[name];
             let prev_source = this.sources[name];
 
+            // Instantiate data source
             try {
                 let config = Object.assign({}, source, { name, id: source_id++ });
                 this.sources[name] = DataSource.create(config, this.sources);
